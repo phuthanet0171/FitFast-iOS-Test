@@ -60,6 +60,10 @@ class NotificationService {
     final appNotificationsEnabled =
         await AppSettingsService.instance.notificationsEnabled();
     if (!settings.notificationsEnabled || !appNotificationsEnabled) return;
+    // A plan made on another phone turns reminders on without this device
+    // ever asking. iOS then drops them silently, so ask here; the system
+    // only shows its prompt once and answers at once afterwards.
+    if (!await requestPermission()) return;
 
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
