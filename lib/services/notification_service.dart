@@ -70,10 +70,21 @@ class NotificationService {
         'fitfast_fasting_reminders',
         'การแจ้งเตือน IF',
         channelDescription: 'แจ้งเตือนเวลาเริ่มกินและเวลาเริ่มอดอาหาร',
+        // High importance shows a heads-up banner over other apps.
         importance: Importance.high,
         priority: Priority.high,
+        category: AndroidNotificationCategory.reminder,
+        visibility: NotificationVisibility.public,
       ),
-      iOS: DarwinNotificationDetails(),
+      // Banner, sound and a place in Notification Centre, also while FitFast
+      // itself is open.
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBanner: true,
+        presentList: true,
+        presentSound: true,
+        interruptionLevel: InterruptionLevel.active,
+      ),
     );
 
     await _plugin.zonedSchedule(
