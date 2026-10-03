@@ -1,0 +1,35 @@
+# Builds an unsigned iOS app for sideloading (e.g. with Sideloadly on
+# Windows). Run it from the Actions tab: "Build iOS (unsigned)" > Run workflow.
+name: Build iOS (unsigned)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.9
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter build ios --release --no-codesign
+
+      - name: Pack IPA
+        run: |
+          mkdir Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qr FitFast.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FitFast-ipa
+          path: FitFast.ipa
+          retention-days: 14
