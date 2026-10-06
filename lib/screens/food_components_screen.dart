@@ -8,6 +8,7 @@ import '../services/meal_history_service.dart';
 import '../theme/app_theme.dart';
 import 'food_amount_screen.dart';
 import 'food_search_screen.dart';
+import '../widgets/app_snackbar.dart';
 
 class FoodComponentsScreen extends StatefulWidget {
   const FoodComponentsScreen({
@@ -69,10 +70,12 @@ class _FoodComponentsScreenState extends State<FoodComponentsScreen> {
     ));
     if (food == null || !mounted) return;
     if (food.id == widget.parentFood.id) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'กรุณาเลือกอาหารย่อย เช่น ข้าวหรือเนื้อไก่ ไม่เลือกเมนูทั้งจานซ้ำ'),
-      ));
+      showAppSnackBar(
+        context,
+        'เลือกเฉพาะส่วนประกอบในจาน เช่น ข้าวสวย ไข่ดาว หรือไก่ '
+        'ไม่ใช่ทั้งเมนูซ้ำอีกครั้ง',
+        type: AppMessageType.warning,
+      );
       return;
     }
     final portion =
@@ -123,14 +126,16 @@ class _FoodComponentsScreenState extends State<FoodComponentsScreen> {
   void _remove(int index) {
     final removed = _components.removeAt(index);
     setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('นำ ${removed.foodName} ออกแล้ว'),
+    showAppSnackBar(
+      context,
+      'นำ ${removed.foodName} ออกแล้ว',
+      type: AppMessageType.success,
       action: SnackBarAction(
         label: 'เลิกทำ',
         onPressed: () => setState(() => _components.insert(
             index.clamp(0, _components.length).toInt(), removed)),
       ),
-    ));
+    );
   }
 
   void _save() {

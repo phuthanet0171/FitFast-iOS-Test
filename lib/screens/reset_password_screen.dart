@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../theme/app_theme.dart';
 import 'authenticated_home_screen.dart';
+import '../widgets/app_snackbar.dart';
+import '../services/error_messages.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -36,10 +38,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         MaterialPageRoute(builder: (_) => const AuthenticatedHomeScreen()),
         (_) => false,
       );
-    } on AuthException catch (error) {
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.message)));
+      showAppSnackBar(
+        context,
+        friendlyError(error,
+            fallback: 'ตั้งรหัสผ่านใหม่ไม่สำเร็จ กรุณาลองใหม่'),
+        type: AppMessageType.error,
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }

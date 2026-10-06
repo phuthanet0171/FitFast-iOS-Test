@@ -55,6 +55,14 @@ class AppTheme {
           side: const BorderSide(color: AppColors.border),
         ),
       ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.navy,
+        actionTextColor: const Color(0xFF7BE0C6),
+        contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14),
+        insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.teal,

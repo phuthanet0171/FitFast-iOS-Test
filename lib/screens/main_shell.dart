@@ -11,6 +11,7 @@ import 'if_interest_screen.dart';
 import 'if_setup_method_screen.dart';
 import 'profile_screen.dart';
 import 'progress_screen.dart';
+import '../widgets/app_snackbar.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({
@@ -88,13 +89,12 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _showTeenIfMessage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'FitFast ไม่เปิดแผน IF อัตโนมัติสำหรับอายุ 16–17 ปี '
-          'ควรปรึกษาผู้ปกครองหรือผู้เชี่ยวชาญก่อน',
-        ),
-      ),
+    showAppSnackBar(
+      context,
+      'FitFast ไม่เปิดแผน IF อัตโนมัติสำหรับอายุ 16–17 ปี '
+      'ควรปรึกษาผู้ปกครองหรือผู้เชี่ยวชาญก่อน',
+      type: AppMessageType.info,
+      duration: const Duration(seconds: 5),
     );
   }
 

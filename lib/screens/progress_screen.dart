@@ -8,6 +8,7 @@ import '../models/weight_entry.dart';
 import '../services/health_profile_service.dart';
 import '../services/weight_history_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_snackbar.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -53,6 +54,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
               : _profile?.currentWeight.toStringAsFixed(1) ?? ''),
     );
     final noteController = TextEditingController(text: existing?.note ?? '');
+    String? weightError;
     var selectedDate = existing?.date ?? DateTime.now();
     final result = await showModalBottomSheet<WeightEntry>(
       context: context,
@@ -93,8 +95,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   FilteringTextInputFormatter.allow(
                       RegExp(r'^\d{0,3}(\.\d?)?')),
                 ],
+                onChanged: (_) {
+                  if (weightError != null) {
+                    setSheetState(() => weightError = null);
+                  }
+                },
                 decoration: InputDecoration(
                   labelText: 'น้ำหนัก',
+                  errorText: weightError,
                   suffixText: 'กก.',
                   prefixIcon: const Icon(Icons.monitor_weight_outlined),
                   border: OutlineInputBorder(
@@ -132,10 +140,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 onPressed: () {
                   final weight = double.tryParse(controller.text);
                   if (weight == null || weight < 30 || weight > 300) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('กรุณากรอกน้ำหนัก 30–300 กก.')),
-                    );
+                    setSheetState(() => weightError = weight == null
+                        ? 'กรุณากรอกน้ำหนัก'
+                        : 'น้ำหนักต้องอยู่ระหว่าง 30–300 กก.');
                     return;
                   }
                   Navigator.of(context).pop(WeightEntry(
@@ -162,6 +169,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
     if (result == null) return;
     await WeightHistoryService.instance.save(result);
     await _load();
+    if (!mounted) return;
+    showAppSnackBar(
+      context,
+      existing == null ? 'บันทึกน้ำหนักแล้ว' : 'แก้ไขน้ำหนักแล้ว',
+      type: AppMessageType.success,
+    );
   }
 
   Future<void> _delete(WeightEntry entry) async {

@@ -8,6 +8,8 @@ import '../theme/app_theme.dart';
 import '../widgets/brand_backdrop.dart';
 import 'auth_screen.dart';
 import 'authenticated_home_screen.dart';
+import '../widgets/app_snackbar.dart';
+import '../services/error_messages.dart';
 
 /// Shown after signing up while the email address is not yet confirmed.
 ///
@@ -99,10 +101,12 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       if (auth.currentUser?.emailConfirmedAt != null) {
         _openHome();
       } else {
-        _show('ยังไม่พบการยืนยัน กรุณากดลิงก์ในอีเมลก่อน');
+        _show('ยังไม่พบการยืนยัน กรุณากดลิงก์ในอีเมลก่อน',
+            AppMessageType.warning);
       }
-    } catch (_) {
-      _show('ตรวจสอบไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง');
+    } catch (error) {
+      _show(friendlyError(error, fallback: 'ตรวจสอบไม่สำเร็จ กรุณาลองใหม่'),
+          AppMessageType.error);
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -116,25 +120,20 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
         email: widget.email,
         emailRedirectTo: 'fitfast://login-callback',
       );
-      _show('ส่งอีเมลยืนยันอีกครั้งแล้ว');
+      _show('ส่งอีเมลยืนยันอีกครั้งแล้ว กรุณาเช็กกล่องจดหมาย',
+          AppMessageType.success);
       _startCooldown();
-    } on AuthException catch (error) {
-      _show(error.message.toLowerCase().contains('rate limit') ||
-              error.statusCode == '429'
-          ? 'ส่งบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่'
-          : error.message);
-    } catch (_) {
-      _show('ส่งอีเมลไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ต');
+    } catch (error) {
+      _show(friendlyError(error, fallback: 'ส่งอีเมลไม่สำเร็จ กรุณาลองใหม่'),
+          AppMessageType.error);
     } finally {
       if (mounted) setState(() => _resending = false);
     }
   }
 
-  void _show(String message) {
+  void _show(String message, AppMessageType type) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showAppSnackBar(context, message, type: type);
   }
 
   @override

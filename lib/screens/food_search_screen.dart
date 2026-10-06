@@ -9,6 +9,7 @@ import '../services/food_search.dart';
 import '../services/household_units.dart';
 import '../widgets/food_photo.dart';
 import 'food_amount_screen.dart';
+import '../widgets/app_snackbar.dart';
 
 class FoodSearchScreen extends StatefulWidget {
   const FoodSearchScreen(
@@ -121,8 +122,11 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
       if (mounted) setState(() => _favorites = items);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('ยังบันทึกรายการโปรดไม่ได้')));
+        showAppSnackBar(
+          context,
+          'บันทึกรายการโปรดไม่สำเร็จ ต้องเชื่อมต่ออินเทอร์เน็ตก่อน',
+          type: AppMessageType.error,
+        );
       }
     }
   }

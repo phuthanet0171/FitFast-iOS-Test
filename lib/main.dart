@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/app_config.dart';
@@ -101,6 +102,11 @@ class _FitFastAppState extends State<FitFastApp> {
       debugShowCheckedModeBanner: false,
       title: 'FitFast',
       theme: AppTheme.light,
+      // Thai labels for Flutter's own dialogs, pickers and the copy/paste
+      // menu (ตกลง, ยกเลิก, วาง ...).
+      locale: const Locale('th'),
+      supportedLocales: const [Locale('th'), Locale('en')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       home: widget.listenToAuthChanges
           ? const SplashScreen()
           : const AuthScreen(),

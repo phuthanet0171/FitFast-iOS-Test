@@ -9,6 +9,8 @@ import '../services/fasting_session_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import 'if_settings_screen.dart';
+import '../widgets/app_snackbar.dart';
+import '../services/error_messages.dart';
 
 class FastingTimerScreen extends StatefulWidget {
   const FastingTimerScreen({
@@ -157,10 +159,12 @@ class _FastingTimerScreenState extends State<FastingTimerScreen>
         if (!granted) {
           updated = settings.copyWith(notificationsEnabled: false);
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('กรุณาอนุญาตการแจ้งเตือนในการตั้งค่าเครื่อง'),
-              ),
+            showAppSnackBar(
+              context,
+              'FitFast ยังไม่ได้รับอนุญาตให้แจ้งเตือน '
+              'เปิดได้ที่ ตั้งค่าเครื่อง > การแจ้งเตือน > FitFast',
+              type: AppMessageType.warning,
+              duration: const Duration(seconds: 5),
             );
           }
         }
@@ -168,11 +172,13 @@ class _FastingTimerScreenState extends State<FastingTimerScreen>
       await FastingSettingsService.instance.save(updated);
       await NotificationService.instance.scheduleFastingReminders(updated);
       widget.onSettingsChanged(updated);
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('บันทึกการตั้งค่าไม่สำเร็จ กรุณาลองใหม่')),
+        showAppSnackBar(
+          context,
+          friendlyError(error,
+              fallback: 'บันทึกการตั้งค่า IF ไม่สำเร็จ กรุณาลองใหม่'),
+          type: AppMessageType.error,
         );
       }
     } finally {

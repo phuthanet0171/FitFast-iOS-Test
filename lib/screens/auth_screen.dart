@@ -10,6 +10,8 @@ import '../widgets/brand_backdrop.dart';
 import '../widgets/fitfast_logo.dart';
 import 'authenticated_home_screen.dart';
 import 'verify_email_screen.dart';
+import '../widgets/app_snackbar.dart';
+import '../services/error_messages.dart';
 
 /// The first screen for people who are not signed in: what FitFast does,
 /// then sign up, sign in or continue with Google.
@@ -32,11 +34,13 @@ class _AuthScreenState extends State<AuthScreen> {
         redirectTo: 'fitfast://login-callback',
         authScreenLaunchMode: LaunchMode.externalApplication,
       );
-    } on AuthException catch (error) {
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(error.message), backgroundColor: AppColors.orange),
+      showAppSnackBar(
+        context,
+        friendlyError(error,
+            fallback: 'เปิดหน้าเข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองใหม่'),
+        type: AppMessageType.error,
       );
     } finally {
       if (mounted) setState(() => _googleLoading = false);
@@ -404,11 +408,13 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
       if (CloudProfileService.instance.isDuplicateUsername(error)) {
         _showError('ชื่อผู้ใช้นี้ถูกใช้แล้ว กรุณาเลือกชื่ออื่น');
       } else {
-        _showError('บันทึกชื่อผู้ใช้ไม่สำเร็จ กรุณาลองใหม่');
+        _showError(friendlyError(error,
+            fallback: 'บันทึกชื่อผู้ใช้ไม่สำเร็จ กรุณาลองใหม่'));
       }
     } on AuthException catch (error) {
       if (!_registering &&
-          error.message.toLowerCase().contains('email not confirmed')) {
+          (error.code == 'email_not_confirmed' ||
+              error.message.toLowerCase().contains('email not confirmed'))) {
         // Signed up but never opened the link: offer to send it again.
         if (!mounted) return;
         Navigator.of(context).push(MaterialPageRoute(
@@ -416,41 +422,21 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
         ));
         return;
       }
-      _showError(_friendly(error.message));
-    } catch (_) {
-      _showError('เชื่อมต่อระบบสมาชิกไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ต');
+      _showError(friendlyError(error,
+          fallback: _registering
+              ? 'สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่'
+              : 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่'));
+    } catch (error) {
+      _showError(friendlyError(error,
+          fallback: 'เชื่อมต่อระบบสมาชิกไม่สำเร็จ กรุณาลองใหม่'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  String _friendly(String message) {
-    final value = message.toLowerCase();
-    if (value.contains('invalid login credentials')) {
-      return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
-    }
-    if (value.contains('already registered')) {
-      return 'อีเมลนี้สมัครสมาชิกแล้ว';
-    }
-    if (value.contains('email not confirmed')) {
-      return 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ';
-    }
-    // Supabase sends only a few confirmation emails per hour unless the
-    // project has its own SMTP server.
-    if (value.contains('email rate limit')) {
-      return 'ระบบส่งอีเมลยืนยันครบจำนวนต่อชั่วโมงแล้ว กรุณารอประมาณ 1 ชั่วโมงแล้วลองใหม่';
-    }
-    if (value.contains('rate limit')) {
-      return 'ลองหลายครั้งเกินไป กรุณารอสักครู่';
-    }
-    return message;
-  }
-
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppColors.orange),
-    );
+    showAppSnackBar(context, message, type: AppMessageType.error);
   }
 
   Future<void> _forgotPassword() async {
@@ -500,12 +486,16 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
         redirectTo: 'fitfast://login-callback',
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('ส่งลิงก์ตั้งรหัสผ่านใหม่แล้ว กรุณาตรวจอีเมล')),
+      showAppSnackBar(
+        context,
+        'ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่ $result แล้ว กรุณาเช็กอีเมล '
+        '(ถ้าไม่เจอ ดูในจดหมายขยะ)',
+        type: AppMessageType.success,
+        duration: const Duration(seconds: 5),
       );
-    } on AuthException catch (error) {
-      _showError(_friendly(error.message));
+    } catch (error) {
+      _showError(friendlyError(error,
+          fallback: 'ส่งลิงก์ตั้งรหัสผ่านใหม่ไม่สำเร็จ กรุณาลองใหม่'));
     }
   }
 

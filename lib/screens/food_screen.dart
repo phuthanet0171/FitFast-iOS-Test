@@ -13,6 +13,7 @@ import '../theme/app_theme.dart';
 import '../widgets/meal_type_style.dart';
 import 'food_amount_screen.dart';
 import 'food_search_screen.dart';
+import '../widgets/app_snackbar.dart';
 
 class FoodScreen extends StatefulWidget {
   const FoodScreen(
@@ -290,26 +291,19 @@ class _FoodScreenState extends State<FoodScreen> with WidgetsBindingObserver {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-      ));
+    showAppSnackBar(context, message,
+        type: AppMessageType.success, duration: const Duration(seconds: 2));
   }
 
   void _showUndo(String message, Future<void> Function() undo) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(message),
-        // Since Flutter 3.35 a SnackBar with an action stays until dismissed
-        // unless persist is false.
-        persist: false,
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(label: 'เลิกทำ', onPressed: () => undo()),
-      ));
+    showAppSnackBar(
+      context,
+      message,
+      type: AppMessageType.success,
+      duration: const Duration(seconds: 4),
+      action: SnackBarAction(label: 'เลิกทำ', onPressed: () => undo()),
+    );
   }
 
   @override

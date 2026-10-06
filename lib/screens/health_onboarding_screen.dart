@@ -6,6 +6,7 @@ import '../services/health_profile_service.dart';
 import '../services/weight_history_service.dart';
 import '../theme/app_theme.dart';
 import 'health_summary_screen.dart';
+import '../widgets/app_snackbar.dart';
 
 class HealthOnboardingScreen extends StatefulWidget {
   const HealthOnboardingScreen({super.key});
@@ -51,9 +52,7 @@ class _HealthOnboardingScreenState extends State<HealthOnboardingScreen> {
         'gain' => 'น้ำหนักเป้าหมายต้องสูงกว่าน้ำหนักปัจจุบัน',
         _ => 'น้ำหนักเป้าหมายต้องเท่ากับน้ำหนักปัจจุบัน',
       };
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      showAppSnackBar(context, message, type: AppMessageType.warning);
       return;
     }
     if (_step < _stepCount - 1) {

@@ -15,6 +15,8 @@ import '../services/weight_history_service.dart';
 import '../theme/app_theme.dart';
 import 'auth_screen.dart';
 import 'health_onboarding_screen.dart';
+import '../widgets/app_snackbar.dart';
+import '../services/error_messages.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
@@ -64,9 +66,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final granted = await NotificationService.instance.requestPermission();
       if (!granted) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('ยังไม่ได้รับสิทธิ์แจ้งเตือนจากอุปกรณ์')),
+        showAppSnackBar(
+          context,
+          'FitFast ยังไม่ได้รับอนุญาตให้แจ้งเตือน '
+          'เปิดได้ที่ ตั้งค่าเครื่อง > การแจ้งเตือน > FitFast',
+          type: AppMessageType.warning,
+          duration: const Duration(seconds: 5),
         );
         return;
       }
@@ -210,7 +215,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final email = Supabase.instance.client.auth.currentUser?.email;
       if (email == null) {
-        throw const AuthException('ไม่พบบัญชีอีเมลสำหรับเปลี่ยนรหัสผ่าน');
+        throw const AuthException('user not found');
       }
       await Supabase.instance.client.auth.signInWithPassword(
         email: email,
@@ -220,16 +225,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         UserAttributes(password: values[1]),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('เปลี่ยนรหัสผ่านเรียบร้อยแล้ว')),
-      );
-    } on AuthException catch (error) {
+      showAppSnackBar(context, 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว',
+          type: AppMessageType.success);
+    } catch (error) {
       if (!mounted) return;
-      final message = error.message.toLowerCase().contains('invalid login')
-          ? 'รหัสผ่านปัจจุบันไม่ถูกต้อง'
-          : error.message;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.orange),
+      final wrongPassword = error is AuthException &&
+          (error.code == 'invalid_credentials' ||
+              error.message.toLowerCase().contains('invalid login'));
+      showAppSnackBar(
+        context,
+        wrongPassword
+            ? 'รหัสผ่านปัจจุบันไม่ถูกต้อง'
+            : friendlyError(error,
+                fallback: 'เปลี่ยนรหัสผ่านไม่สำเร็จ กรุณาลองใหม่'),
+        type: AppMessageType.error,
       );
     }
   }
@@ -292,16 +301,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await CloudProfileService.instance.saveDisplayName(name);
       if (!mounted) return;
       setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('บันทึกชื่อโปรไฟล์แล้ว')),
-      );
-    } catch (_) {
+      showAppSnackBar(context, 'บันทึกชื่อโปรไฟล์แล้ว',
+          type: AppMessageType.success);
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('บันทึกชื่อไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วลองใหม่'),
-          backgroundColor: AppColors.orange,
-        ),
+      showAppSnackBar(
+        context,
+        friendlyError(error, fallback: 'บันทึกชื่อไม่สำเร็จ กรุณาลองใหม่'),
+        type: AppMessageType.error,
       );
     }
   }
@@ -356,18 +363,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
       if (!mounted) return;
       setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'บันทึกคำขอแล้ว หากได้รับอีเมลจาก FitFast กรุณากดยืนยันอีเมลใหม่',
-          ),
-        ),
+      showAppSnackBar(
+        context,
+        'ส่งลิงก์ยืนยันไปที่ $newEmail แล้ว '
+        'กดลิงก์ในอีเมลเพื่อเปลี่ยนอีเมลให้เสร็จ',
+        type: AppMessageType.success,
+        duration: const Duration(seconds: 5),
       );
-    } on AuthException catch (error) {
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(error.message), backgroundColor: AppColors.orange),
+      showAppSnackBar(
+        context,
+        friendlyError(error, fallback: 'เปลี่ยนอีเมลไม่สำเร็จ กรุณาลองใหม่'),
+        type: AppMessageType.error,
       );
     }
   }
@@ -441,21 +449,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         MaterialPageRoute(builder: (_) => const AuthScreen()),
         (_) => false,
       );
-    } on FunctionException catch (error) {
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('ลบบัญชีไม่สำเร็จ (${error.status}) กรุณาลองใหม่'),
-          backgroundColor: AppColors.orange,
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('เชื่อมต่อระบบลบบัญชีไม่สำเร็จ กรุณาลองใหม่'),
-          backgroundColor: AppColors.orange,
-        ),
+      showAppSnackBar(
+        context,
+        friendlyError(error,
+            fallback: 'ลบบัญชีไม่สำเร็จ ข้อมูลของคุณยังอยู่ครบ กรุณาลองใหม่'),
+        type: AppMessageType.error,
       );
     }
   }
