@@ -308,9 +308,16 @@ class _BottomPanel extends StatelessWidget {
 
 /// Sign in or create an account with email and password.
 class EmailAuthScreen extends StatefulWidget {
-  const EmailAuthScreen({super.key, required this.registering});
+  const EmailAuthScreen({
+    super.key,
+    required this.registering,
+    this.initialEmail,
+  });
 
   final bool registering;
+
+  /// Filled in when coming back from email verification.
+  final String? initialEmail;
 
   @override
   State<EmailAuthScreen> createState() => _EmailAuthScreenState();
@@ -319,7 +326,7 @@ class EmailAuthScreen extends StatefulWidget {
 class _EmailAuthScreenState extends State<EmailAuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _username = TextEditingController();
-  final _email = TextEditingController();
+  late final _email = TextEditingController(text: widget.initialEmail);
   final _password = TextEditingController();
   final _passwordConfirmation = TextEditingController();
   late final bool _registering = widget.registering;
@@ -400,6 +407,15 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
         _showError('บันทึกชื่อผู้ใช้ไม่สำเร็จ กรุณาลองใหม่');
       }
     } on AuthException catch (error) {
+      if (!_registering &&
+          error.message.toLowerCase().contains('email not confirmed')) {
+        // Signed up but never opened the link: offer to send it again.
+        if (!mounted) return;
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => VerifyEmailScreen(email: _email.text.trim()),
+        ));
+        return;
+      }
       _showError(_friendly(error.message));
     } catch (_) {
       _showError('เชื่อมต่อระบบสมาชิกไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ต');
@@ -418,6 +434,11 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
     }
     if (value.contains('email not confirmed')) {
       return 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ';
+    }
+    // Supabase sends only a few confirmation emails per hour unless the
+    // project has its own SMTP server.
+    if (value.contains('email rate limit')) {
+      return 'ระบบส่งอีเมลยืนยันครบจำนวนต่อชั่วโมงแล้ว กรุณารอประมาณ 1 ชั่วโมงแล้วลองใหม่';
     }
     if (value.contains('rate limit')) {
       return 'ลองหลายครั้งเกินไป กรุณารอสักครู่';

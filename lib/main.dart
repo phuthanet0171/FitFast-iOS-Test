@@ -8,6 +8,7 @@ import 'screens/auth_screen.dart';
 import 'screens/authenticated_home_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/splash_screen.dart';
+import 'services/timeout_http_client.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -20,6 +21,7 @@ Future<void> main() async {
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
     publishableKey: AppConfig.supabasePublishableKey,
+    httpClient: TimeoutHttpClient(),
   );
   runApp(const FitFastApp());
 }

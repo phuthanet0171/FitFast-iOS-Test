@@ -234,6 +234,78 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Edited name, then the Google name, then the username or email.
+  String get _profileName {
+    final user = Supabase.instance.client.auth.currentUser;
+    return CloudProfileService.displayName(user) ??
+        _accountUsername ??
+        user?.email ??
+        'ผู้ใช้ FitFast';
+  }
+
+  Future<void> _editName() async {
+    final current = _profileName;
+    final controller = TextEditingController(text: current);
+    String? errorText;
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('แก้ไขชื่อโปรไฟล์'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: CloudProfileService.maxDisplayNameLength,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              labelText: 'ชื่อที่แสดง',
+              helperText: 'ใช้ภาษาไทยหรืออังกฤษได้',
+              prefixIcon: const Icon(Icons.badge_outlined),
+              errorText: errorText,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('ยกเลิก'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value =
+                    controller.text.trim().replaceAll(RegExp(r'\s+'), ' ');
+                if (value.isEmpty) {
+                  setDialogState(() => errorText = 'กรุณากรอกชื่อ');
+                  return;
+                }
+                Navigator.pop(dialogContext, value);
+              },
+              child: const Text('บันทึก'),
+            ),
+          ],
+        ),
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    controller.dispose();
+    if (name == null || name == current) return;
+    try {
+      await CloudProfileService.instance.saveDisplayName(name);
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('บันทึกชื่อโปรไฟล์แล้ว')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('บันทึกชื่อไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วลองใหม่'),
+          backgroundColor: AppColors.orange,
+        ),
+      );
+    }
+  }
+
   Future<void> _changeEmail() async {
     final currentEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
     final controller = TextEditingController(text: currentEmail);
@@ -393,6 +465,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       MaterialPageRoute(
         builder: (_) => _SettingsScreen(
           notificationsEnabled: _notificationsEnabled,
+          profileName: () => _profileName,
+          onEditName: _editName,
           onChangePassword: _changePassword,
           onChangeEmail: _changeEmail,
           onToggleNotifications: _toggleNotifications,
@@ -439,17 +513,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      Text(
-                          _accountUsername ??
-                              Supabase.instance.client.auth.currentUser
-                                  ?.userMetadata?['username'] as String? ??
-                              Supabase
-                                  .instance.client.auth.currentUser?.email ??
-                              'ผู้ใช้ FitFast',
-                          style: TextStyle(
+                      Text(_profileName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
                               fontWeight: FontWeight.w900)),
+                      if (_accountUsername != null &&
+                          _accountUsername != _profileName)
+                        Text('@$_accountUsername',
+                            style: const TextStyle(
+                                color: Color(0xFFD7F5ED), fontSize: 13)),
                       const SizedBox(height: 4),
                       Text(
                           profile == null
@@ -553,6 +628,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 class _SettingsScreen extends StatefulWidget {
   const _SettingsScreen({
     required this.notificationsEnabled,
+    required this.profileName,
+    required this.onEditName,
     required this.onChangePassword,
     required this.onChangeEmail,
     required this.onToggleNotifications,
@@ -560,6 +637,10 @@ class _SettingsScreen extends StatefulWidget {
   });
 
   final bool notificationsEnabled;
+
+  /// Read again after editing so the tile shows the new name.
+  final String Function() profileName;
+  final Future<void> Function() onEditName;
   final Future<void> Function() onChangePassword;
   final Future<void> Function() onChangeEmail;
   final Future<void> Function(bool) onToggleNotifications;
@@ -597,6 +678,16 @@ class _SettingsScreenState extends State<_SettingsScreen> {
               Card(
                 child: Column(
                   children: [
+                    _SettingsTile(
+                      icon: Icons.badge_outlined,
+                      title: 'ชื่อโปรไฟล์',
+                      subtitle: widget.profileName(),
+                      onTap: () async {
+                        await widget.onEditName();
+                        if (mounted) setState(() {});
+                      },
+                    ),
+                    const Divider(height: 1, indent: 62),
                     _SettingsTile(
                       icon: Icons.password_rounded,
                       title: 'เปลี่ยนรหัสผ่าน',

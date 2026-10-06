@@ -22,7 +22,12 @@ class _AuthenticatedHomeScreenState extends State<AuthenticatedHomeScreen> {
   late final Future<FastingSettings?> _fasting = _prepareFasting();
 
   Future<HealthProfile?> _prepareProfile() async {
-    await CloudProfileService.instance.syncUsernameFromMetadata();
+    try {
+      await CloudProfileService.instance.syncUsernameFromMetadata();
+    } catch (_) {
+      // Offline: the username is synced on a later start. Without this the
+      // failure hid the saved health profile and reopened onboarding.
+    }
     return HealthProfileService.instance.load();
   }
 
