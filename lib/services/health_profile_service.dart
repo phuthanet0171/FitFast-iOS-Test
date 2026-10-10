@@ -82,6 +82,7 @@ class HealthProfileService {
         )
         .eq('id', userId)
         .maybeSingle();
+    final (targetDate, planStartedAt) = await _loadRemotePlanDates(userId);
     if (row == null ||
         row['age'] == null ||
         row['gender'] == null ||
@@ -102,25 +103,78 @@ class HealthProfileService {
       weightGoal: row['weight_goal'] as String,
       updatedAt: DateTime.tryParse(row['updated_at'] as String? ?? '') ??
           DateTime.now(),
+      targetDate: targetDate,
+      planStartedAt: planStartedAt,
     );
+  }
+
+  /// `target_date` and `plan_started_at` are newer columns; projects that
+  /// have not added them yet still load the rest of the profile.
+  Future<(DateTime?, DateTime?)> _loadRemotePlanDates(String userId) async {
+    DateTime? read(Map<String, dynamic>? row, String column) =>
+        DateTime.tryParse(row?[column] as String? ?? '');
+    try {
+      final row = await Supabase.instance.client
+          .from('profiles')
+          .select('target_date, plan_started_at')
+          .eq('id', userId)
+          .maybeSingle();
+      return (read(row, 'target_date'), read(row, 'plan_started_at'));
+    } on PostgrestException {
+      try {
+        final row = await Supabase.instance.client
+            .from('profiles')
+            .select('target_date')
+            .eq('id', userId)
+            .maybeSingle();
+        return (read(row, 'target_date'), null);
+      } on PostgrestException {
+        return (null, null);
+      }
+    }
   }
 
   Future<void> _saveRemoteSafely(
     String userId,
     HealthProfile profile,
   ) async {
+    final row = {
+      'id': userId,
+      'age': profile.age,
+      'gender': profile.gender,
+      'height_cm': profile.height,
+      'current_weight_kg': profile.currentWeight,
+      'target_weight_kg': profile.targetWeight,
+      'activity_level': profile.activity,
+      'weight_goal': profile.weightGoal,
+      'updated_at': profile.updatedAt.toUtc().toIso8601String(),
+    };
+    final targetDate = profile.targetDate;
+    final withTargetDate = {
+      ...row,
+      'target_date': targetDate == null
+          ? null
+          : '${targetDate.year.toString().padLeft(4, '0')}-'
+              '${targetDate.month.toString().padLeft(2, '0')}-'
+              '${targetDate.day.toString().padLeft(2, '0')}',
+    };
+    final client = Supabase.instance.client;
     try {
-      await Supabase.instance.client.from('profiles').upsert({
-        'id': userId,
-        'age': profile.age,
-        'gender': profile.gender,
-        'height_cm': profile.height,
-        'current_weight_kg': profile.currentWeight,
-        'target_weight_kg': profile.targetWeight,
-        'activity_level': profile.activity,
-        'weight_goal': profile.weightGoal,
-        'updated_at': profile.updatedAt.toUtc().toIso8601String(),
-      }, onConflict: 'id');
+      try {
+        await client.from('profiles').upsert({
+          ...withTargetDate,
+          'plan_started_at': profile.planStartedAt.toUtc().toIso8601String(),
+        }, onConflict: 'id');
+      } on PostgrestException {
+        // Older databases without the newer columns still sync the rest.
+        try {
+          await client
+              .from('profiles')
+              .upsert(withTargetDate, onConflict: 'id');
+        } on PostgrestException {
+          await client.from('profiles').upsert(row, onConflict: 'id');
+        }
+      }
     } catch (_) {
       // Local data remains available and will be retried on the next load.
     }

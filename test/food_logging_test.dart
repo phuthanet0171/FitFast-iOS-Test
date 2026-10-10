@@ -1,4 +1,5 @@
 import 'package:fitfast/models/food_item.dart';
+import 'package:fitfast/models/health_result.dart';
 import 'package:fitfast/models/meal_entry.dart';
 import 'package:fitfast/screens/food_screen.dart';
 import 'package:fitfast/services/meal_history_service.dart';
@@ -69,6 +70,50 @@ void main() {
       expect(copy.grams, 250);
       expect(copy.calories, original.calories);
     });
+  });
+
+  test('editing the health profile updates the targets of today only',
+      () async {
+    HealthResult result(double calories) => HealthResult(
+          bmi: 24,
+          bmr: 1600,
+          tdee: 2200,
+          calories: calories,
+          protein: calories * .25 / 4,
+          carbs: calories * .45 / 4,
+          fat: calories * .30 / 9,
+          sugar: 24,
+          sodium: 2000,
+          recommendedPlan: '16/8',
+          recommendationReason: '',
+          isFastingSuitable: true,
+          weightGoal: 'lose',
+          usesTeenSafetyMode: false,
+        );
+    final history = NutritionHistoryService.instance;
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    await history.replaceIntake(
+      date: yesterday,
+      healthResult: result(1900),
+      calories: 1500,
+      protein: 80,
+      carbs: 200,
+      fat: 50,
+      sugar: 20,
+      sodium: 1500,
+      sugarDataComplete: true,
+      sodiumDataComplete: true,
+    );
+    final before = await history.loadOrCreateToday(result(1900));
+    expect(before.calorieTarget, 1900);
+
+    // The user lowers the target weight: today follows the new plan.
+    final after = await history.loadOrCreateToday(result(1700));
+    expect(after.calorieTarget, 1700);
+    expect(after.proteinTarget, closeTo(106.25, .001));
+    expect((await history.loadOrCreateToday(null)).calorieTarget, 1700);
+    // Yesterday keeps the target it was logged against.
+    expect((await history.load(yesterday))!.calorieTarget, 1900);
   });
 
   test('frequent foods rank foods eaten at the same meal first', () async {

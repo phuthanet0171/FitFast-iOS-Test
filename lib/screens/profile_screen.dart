@@ -36,6 +36,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   String? _accountUsername;
 
+  /// Latest logged weight; the profile keeps the weight the plan started at.
+  double? _latestWeight;
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _load() async {
     final profile = await HealthProfileService.instance.load();
+    final latestWeight = await WeightHistoryService.instance.latestWeight();
     final notifications =
         await AppSettingsService.instance.notificationsEnabled();
     String? accountUsername;
@@ -55,6 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     setState(() {
       _profile = profile;
+      _latestWeight = latestWeight;
       _notificationsEnabled = notifications;
       _accountUsername = accountUsername;
       _loading = false;
@@ -90,7 +95,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _editHealthData() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const HealthOnboardingScreen()),
+      MaterialPageRoute(
+          builder: (_) => HealthOnboardingScreen(initialProfile: _profile)),
     );
   }
 
@@ -565,12 +571,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _InfoTile(
                     icon: Icons.monitor_weight_outlined,
                     label: 'น้ำหนักปัจจุบัน',
-                    value: '${profile.currentWeight.toStringAsFixed(1)} กก.'),
+                    value:
+                        '${(_latestWeight ?? profile.currentWeight).toStringAsFixed(1)} กก.'),
                 const Divider(height: 1, indent: 60),
                 _InfoTile(
                     icon: Icons.track_changes_rounded,
                     label: 'น้ำหนักเป้าหมาย',
                     value: '${profile.targetWeight.toStringAsFixed(1)} กก.'),
+                if (profile.targetDate case final date?) ...[
+                  const Divider(height: 1, indent: 60),
+                  _InfoTile(
+                      icon: Icons.event_rounded,
+                      label: 'วันถึงเป้าหมาย',
+                      value: thaiDate(date)),
+                ],
                 const Divider(height: 1, indent: 60),
                 _InfoTile(
                     icon: Icons.directions_walk_rounded,

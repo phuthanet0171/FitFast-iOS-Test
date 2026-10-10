@@ -7,6 +7,7 @@ import '../services/fasting_settings_service.dart';
 import '../services/health_calculator.dart';
 import '../services/health_profile_service.dart';
 import '../services/notification_service.dart';
+import '../services/weight_history_service.dart';
 import 'health_onboarding_screen.dart';
 import 'main_shell.dart';
 
@@ -21,6 +22,9 @@ class _AuthenticatedHomeScreenState extends State<AuthenticatedHomeScreen> {
   late final Future<HealthProfile?> _profile = _prepareProfile();
   late final Future<FastingSettings?> _fasting = _prepareFasting();
 
+  /// The latest logged weight; daily energy targets follow it.
+  double? _latestWeight;
+
   Future<HealthProfile?> _prepareProfile() async {
     try {
       await CloudProfileService.instance.syncUsernameFromMetadata();
@@ -28,7 +32,13 @@ class _AuthenticatedHomeScreenState extends State<AuthenticatedHomeScreen> {
       // Offline: the username is synced on a later start. Without this the
       // failure hid the saved health profile and reopened onboarding.
     }
-    return HealthProfileService.instance.load();
+    final profile = await HealthProfileService.instance.load();
+    try {
+      _latestWeight = await WeightHistoryService.instance.latestWeight();
+    } catch (_) {
+      // Without the history the plan's starting weight is used.
+    }
+    return profile;
   }
 
   /// Loads the fasting plan and schedules its reminders again, because they
@@ -74,11 +84,20 @@ class _AuthenticatedHomeScreenState extends State<AuthenticatedHomeScreen> {
                 hasDiabetesOrMedication: false,
                 hasEatingDisorderHistory: false,
                 weightGoal: profile.weightGoal,
+                targetDate: profile.targetDate,
+                // The pace counts from the day the plan started; energy
+                // needs follow the latest logged weight.
+                planStart: profile.planStartedAt,
+                latestWeight: _latestWeight,
               );
               return MainShell(
                 healthResult: result,
                 age: profile.age,
                 fastingSettings: fastingSnapshot.data,
+                onLatestWeightChanged: (weight) {
+                  if (weight == _latestWeight) return;
+                  setState(() => _latestWeight = weight);
+                },
               );
             },
           );

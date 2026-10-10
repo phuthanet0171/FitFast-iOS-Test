@@ -31,7 +31,24 @@ class NutritionHistoryService {
   ) async {
     final now = DateTime.now();
     final existing = await load(now);
-    if (existing != null) return existing;
+    if (existing != null) {
+      // Today's targets follow the latest health profile, so editing the
+      // profile updates the dashboard at once. Earlier days keep the
+      // targets they had, which is what the user was aiming for then.
+      if (healthResult == null) return existing;
+      final target = _emptyRecord(existing.dateKey, healthResult);
+      if (_sameTargets(existing, target)) return existing;
+      final updated = existing.copyWith(
+        calorieTarget: target.calorieTarget,
+        proteinTarget: target.proteinTarget,
+        carbTarget: target.carbTarget,
+        fatTarget: target.fatTarget,
+        sugarLimit: target.sugarLimit,
+        sodiumLimit: target.sodiumLimit,
+      );
+      await save(updated);
+      return updated;
+    }
 
     final record = _emptyRecord(dateKey(now), healthResult);
     await save(record);
@@ -92,7 +109,9 @@ class NutritionHistoryService {
     required bool sodiumDataComplete,
   }) async {
     final key = dateKey(date);
-    final existing = await load(date) ?? _emptyRecord(key, healthResult);
+    final existing = key == dateKey(DateTime.now())
+        ? await loadOrCreateToday(healthResult)
+        : await load(date) ?? _emptyRecord(key, healthResult);
     await save(existing.copyWith(
       calories: calories,
       protein: protein,
@@ -113,6 +132,16 @@ class NutritionHistoryService {
     }
     await _preferences.remove(_userKey(userId));
     await _preferences.remove('$_pendingPrefix$userId');
+  }
+
+  static bool _sameTargets(DailyNutritionRecord a, DailyNutritionRecord b) {
+    bool close(double x, double y) => (x - y).abs() < .05;
+    return close(a.calorieTarget, b.calorieTarget) &&
+        close(a.proteinTarget, b.proteinTarget) &&
+        close(a.carbTarget, b.carbTarget) &&
+        close(a.fatTarget, b.fatTarget) &&
+        close(a.sugarLimit, b.sugarLimit) &&
+        close(a.sodiumLimit, b.sodiumLimit);
   }
 
   DailyNutritionRecord _emptyRecord(

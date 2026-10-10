@@ -26,7 +26,8 @@ void main() {
             'New password should be different from the old password.')),
         'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม');
     expect(
-        friendlyError(const AuthException('Email link is invalid or has expired',
+        friendlyError(const AuthException(
+            'Email link is invalid or has expired',
             code: 'otp_expired')),
         'ลิงก์หมดอายุแล้ว กรุณาขอลิงก์ใหม่');
   });

@@ -302,16 +302,26 @@ class MealHistoryService {
     );
   }
 
+  /// Rows per request. PostgREST returns at most 1,000 rows per request
+  /// by default, so the history is read in pages until a page comes back
+  /// short; otherwise the newest meals were cut off after 1,000 entries.
+  static const _pageSize = 1000;
+
   Future<List<MealEntry>> _loadRemote(String userId) async {
-    final rows = await Supabase.instance.client
-        .from('meal_entries')
-        .select()
-        .eq('user_id', userId)
-        .order('meal_date')
-        .order('created_at');
-    final entries = (rows as List)
-        .map((row) => _fromRemote(Map<String, dynamic>.from(row as Map)))
-        .toList();
+    final entries = <MealEntry>[];
+    for (var from = 0;; from += _pageSize) {
+      final rows = await Supabase.instance.client
+          .from('meal_entries')
+          .select()
+          .eq('user_id', userId)
+          .order('meal_date', ascending: true)
+          .order('created_at', ascending: true)
+          .order('id', ascending: true)
+          .range(from, from + _pageSize - 1);
+      entries.addAll((rows as List)
+          .map((row) => _fromRemote(Map<String, dynamic>.from(row as Map))));
+      if (rows.length < _pageSize) break;
+    }
     _sort(entries);
     return entries;
   }

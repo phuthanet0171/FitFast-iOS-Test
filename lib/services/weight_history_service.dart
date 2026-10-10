@@ -105,6 +105,28 @@ class WeightHistoryService {
     ));
   }
 
+  /// Records [weight] for today when it differs from the latest entry, so a
+  /// weight changed in the health profile also appears in the history.
+  Future<void> recordToday(double weight) async {
+    if (weight <= 0) return;
+    final entries = await loadAll();
+    if (entries.isEmpty) return seedIfEmpty(weight);
+    if ((entries.last.weight - weight).abs() < .05) return;
+    final now = DateTime.now();
+    await save(WeightEntry(
+      id: 'weight_${now.microsecondsSinceEpoch}',
+      date: DateTime(now.year, now.month, now.day),
+      weight: weight,
+      note: '',
+    ));
+  }
+
+  /// The most recent weight, or null when nothing has been logged.
+  Future<double?> latestWeight() async {
+    final entries = await loadAll();
+    return entries.isEmpty ? null : entries.last.weight;
+  }
+
   Future<void> delete(String id) async {
     final userId = _userId;
     final key = userId == null ? _legacyKey : _userKey(userId);
@@ -137,20 +159,29 @@ class WeightHistoryService {
     await _preferences.remove('$_dirtyPrefix$userId');
   }
 
+  /// PostgREST returns at most 1,000 rows per request, so read in pages.
+  static const _pageSize = 1000;
+
   Future<List<WeightEntry>> _loadRemote(String userId) async {
-    final rows = await Supabase.instance.client
-        .from('weight_records')
-        .select('id, recorded_on, weight_kg, note')
-        .eq('user_id', userId)
-        .order('recorded_on');
-    return (rows as List)
-        .map((row) => WeightEntry(
-              id: row['id'] as String,
-              date: DateTime.parse(row['recorded_on'] as String),
-              weight: (row['weight_kg'] as num).toDouble(),
-              note: row['note'] as String? ?? '',
-            ))
-        .toList();
+    final entries = <WeightEntry>[];
+    for (var from = 0;; from += _pageSize) {
+      final rows = await Supabase.instance.client
+          .from('weight_records')
+          .select('id, recorded_on, weight_kg, note')
+          .eq('user_id', userId)
+          .order('recorded_on', ascending: true)
+          .range(from, from + _pageSize - 1);
+      entries.addAll((rows as List).map((row) => WeightEntry(
+            id: row['id'] as String,
+            date: DateTime.parse(row['recorded_on'] as String),
+            weight: (row['weight_kg'] as num).toDouble(),
+            note: row['note'] as String? ?? '',
+          )));
+      if (rows.length < _pageSize) break;
+    }
+    // Callers rely on oldest-first order (the latest weight is last).
+    _sort(entries);
+    return entries;
   }
 
   Future<void> _upsertRemote(String userId, WeightEntry entry) async {

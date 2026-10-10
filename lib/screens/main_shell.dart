@@ -19,11 +19,15 @@ class MainShell extends StatefulWidget {
     this.fastingSettings,
     this.healthResult,
     this.age,
+    this.onLatestWeightChanged,
   });
 
   final FastingSettings? fastingSettings;
   final HealthResult? healthResult;
   final int? age;
+
+  /// Called with the latest logged weight after the weight history changes.
+  final ValueChanged<double?>? onLatestWeightChanged;
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -38,6 +42,15 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     _fastingSettings = widget.fastingSettings;
+  }
+
+  @override
+  void didUpdateWidget(covariant MainShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // New targets after a weight change: reload today's record.
+    if (oldWidget.healthResult?.calories != widget.healthResult?.calories) {
+      _nutritionRefreshVersion++;
+    }
   }
 
   void _openIfSetup() {
@@ -122,7 +135,7 @@ class _MainShellState extends State<MainShell> {
           setState(() => _fastingSettings = settings);
         },
       ),
-      const ProgressScreen(),
+      ProgressScreen(onLatestWeightChanged: widget.onLatestWeightChanged),
       ProfileScreen(
         fastingSettings: _fastingSettings,
       ),
